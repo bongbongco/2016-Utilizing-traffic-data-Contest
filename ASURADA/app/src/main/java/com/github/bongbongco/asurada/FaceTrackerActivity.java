@@ -88,6 +88,8 @@ public final class FaceTrackerActivity extends AppCompatActivity {
 
         Context context = getApplicationContext();
         FaceDetector detector = new FaceDetector.Builder(context)
+                .setTrackingEnabled(false)
+                .setLandmarkType(FaceDetector.ALL_LANDMARKS)
                 .setClassificationType(FaceDetector.ALL_CLASSIFICATIONS)
                 .build();
 
@@ -210,7 +212,8 @@ public final class FaceTrackerActivity extends AppCompatActivity {
         private boolean SleepingFaceCheck(float leftEye, float rightEye)
         {
             boolean bool = true;
-            if ((leftEye <= 0.1F) || (rightEye <= 0.1F)) {
+            if ((leftEye != Face.UNCOMPUTED_PROBABILITY && leftEye <= 0.1F)
+                    || (rightEye != Face.UNCOMPUTED_PROBABILITY && rightEye <= 0.1F)) {
                 bool = false;
             }
             return bool;
@@ -230,7 +233,7 @@ public final class FaceTrackerActivity extends AppCompatActivity {
             do
             {
                 if (SleepingFaceCheck(leftEye, rightEye)) {
-                    break;
+                    return;
                 }
                 Log.e("MainActivity", "Close count -> " + this.count + " left -> " + face.getIsLeftEyeOpenProbability() + ", right -> " + face.getIsRightEyeOpenProbability());
                 this.count += 1;
