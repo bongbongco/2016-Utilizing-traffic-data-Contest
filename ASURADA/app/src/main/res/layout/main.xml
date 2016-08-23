@@ -6,12 +6,12 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:keepScreenOn="true"
-    tools:context="com.github.bongbongco.asurada.FaceTrackerActivity">
+    tools:context=".SleepingCheckManagerActivity">
 
     <com.github.bongbongco.asurada.ui.camera.CameraSourcePreview
         android:id="@+id/preview"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="200dp">
 
     <com.github.bongbongco.asurada.ui.camera.GraphicOverlay
         android:id="@+id/faceOverlay"
@@ -19,5 +19,35 @@
         android:layout_height="match_parent" />
 
     </com.github.bongbongco.asurada.ui.camera.CameraSourcePreview>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="충돌 감지 중입니다."
+        android:id="@+id/notify"
+        android:textSize="20dp"
+        android:layout_below="@id/preview"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="대기 시간은 20초 입니다."
+        android:id="@+id/timer"
+        android:layout_below="@+id/notify"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="44dp"
+        android:textSize="20dp"
+        android:layout_alignParentLeft="true" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="음성 인식 결과입니다"
+        android:id="@+id/voice"
+        android:layout_below="@+id/timer"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="55dp"
+        android:textSize="20dp"
+        android:layout_alignParentLeft="true" />
 
 </LinearLayout>

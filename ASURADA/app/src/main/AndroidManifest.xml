@@ -5,6 +5,9 @@
     <uses-feature android:name="android.hardware.Camera" />
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
 
     <application
         android:allowBackup="true"
@@ -20,7 +23,7 @@
             android:value="face" />
 
         <activity
-            android:name="com.github.bongbongco.asurada.FaceTrackerActivity"
+            android:name=".SleepingCheckManagerActivity"
             android:icon="@drawable/asurada"
             android:label="ASURADA"
             android:theme="@style/Theme.AppCompat.NoActionBar"
