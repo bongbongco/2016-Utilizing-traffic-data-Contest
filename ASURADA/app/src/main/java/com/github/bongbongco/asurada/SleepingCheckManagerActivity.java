@@ -4,9 +4,12 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -22,6 +25,7 @@ import android.speech.SpeechRecognizer;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
@@ -43,7 +47,7 @@ import java.util.ArrayList;
 
 public final class SleepingCheckManagerActivity extends AppCompatActivity implements SensorEventListener {
 
-    //안면 인식 관련 변수
+    // 안면 인식 관련 변수
     private static final String TAG = "FaceTracker";
     private static int ALARM_POINT = 0;
 
@@ -57,31 +61,31 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
 
     //sensor 관련 변수
     //가속도 센서 값
-    private float plus_x;
-    private float plus_y;
-    private float plus_z;
+    private float accidentShakeX;
+    private float accidentShakeY;
+    private float accidentShakeZ;
+    //이전 가속도 센서값
+    private float beforeAccidentShakeX;
+    private float beforeAccidentShakeY;
+    private float beforeAccidentShakeZ;
     //음성 인식 리스너
     private SpeechRecognizer speechRecognizer;
-    private Intent intent;
+    private Intent accidentJudgeIntent;
     //음성 인식 결과
-    private String Answer;
-    //이전 가속도 센서값
-    private float pre_plus_x;
-    private float pre_plus_y;
-    private float pre_plus_z;
+    private String driverAnswer;
     //충돌 감지 여부
-    private boolean flag_Crash=false;
+    private boolean detectingCrash = false;
     //센서 매니저
-    private SensorManager sensormanager;
+    private SensorManager sensorManager;
     private Sensor sensor;
     //타이머 시간
     private String timer;
     private TimerThread timerthread;
 
     //TextView
-    private TextView Voice_Text;
-    private TextView notify_Text;
-    private TextView timer_Text;
+    private TextView voiceTextView;
+    private TextView notifyTextView;
+    private TextView timerTextView;
 
     @Override
     public void onCreate(Bundle icicle) {
@@ -93,16 +97,16 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
 
         //sensor 관련 변수
-        Voice_Text = (TextView)findViewById(R.id.voice);
-        notify_Text = (TextView)findViewById(R.id.notify);
-        timer_Text = (TextView)findViewById(R.id.timer);
+        voiceTextView = (TextView)findViewById(R.id.voice);
+        notifyTextView = (TextView)findViewById(R.id.notify);
+        timerTextView = (TextView)findViewById(R.id.timer);
 
-        intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR");
+        accidentJudgeIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        accidentJudgeIntent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
+        accidentJudgeIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR");
 
-        sensormanager = (SensorManager)getSystemService(SENSOR_SERVICE);    //시스템 서비스로부터
-        sensor = sensormanager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);    //시스템 서비스로부터
+        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         onStart();
 
         //권한 승인 여부 화인 후 카메라 객체 생성
@@ -114,57 +118,55 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         }
     }
 
-    public void onStart()
-    {
+    /*
+     * 사고 인식을 위한 센서 소스 2016.08.26
+     */
+    public void onStart() {
         super.onStart();
-        if(sensor!=null)
-        {
-            sensormanager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME);  //리스너 등록
+        if(sensor!=null) {
+            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME);  //리스너 등록
         }
     }
 
-    public void onStop()
-    {
+    public void onStop() {
         super.onStop();
-        if(sensor!=null)
-        {
-            sensormanager.unregisterListener(this); //리스너 해제
+        if(sensor!=null) {
+            sensorManager.unregisterListener(this); //리스너 해제
         }
     }
 
     public void onAccuracyChanged(Sensor sensor, int accuracy){}
 
-    public void onSensorChanged(SensorEvent event)  //센서값이 변하면 자동으로 호출되는 함수
-    {
-        if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
-        {
-            plus_x = event.values[0];
-            plus_y = event.values[1];
-            plus_z = event.values[2];
-            if((Math.abs(pre_plus_x-plus_x)>25||Math.abs(pre_plus_y-plus_y)>25||Math.abs(pre_plus_z-plus_z)>25) && !flag_Crash)   //충돌 감지 이벤트 발생 영역
-            {
-                flag_Crash = true;  // 한번 충돌 후 flag 값 변경
+    public void onSensorChanged(SensorEvent event) { //센서값이 변하면 자동으로 호출되는 함수
+        if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            accidentShakeX = event.values[0];
+            accidentShakeY = event.values[1];
+            accidentShakeZ = event.values[2];
+            if((Math.abs(beforeAccidentShakeX - accidentShakeX)>25
+                    ||Math.abs(beforeAccidentShakeY - accidentShakeY)>25
+                    ||Math.abs(beforeAccidentShakeZ - accidentShakeZ)>25)
+                    && !detectingCrash) { //충돌 감지 이벤트 발생 영역
+                detectingCrash = true;  // 한번 충돌 후 flag 값 변경
 
-                notify_Text.setText("충돌이 감지 되었습니다.");
+                notifyTextView.setText("충돌이 감지 되었습니다.");
 
                 timerthread = new TimerThread(20); //타이머 스레드 생성 , 현재 대기시간은 20초로 지정
 
                 timerthread.start();    //스레드 시작
 
                 ToReport(); //음성 인식 시작
-
             }
             //속도가 얼마 이상 일 때 감지가 필요할 경우 사용// speed = Math.abs(plus_x+plus_y+plus_z -pri_plus_x-pri_plus_y-pri_plus_z)/gabOfTime * 10000;
 
             //현재 센서값을 이전 센서값에 저장.
-            pre_plus_x = plus_x;
-            pre_plus_y = plus_y;
-            pre_plus_z = plus_z;
+            beforeAccidentShakeX = accidentShakeX;
+            beforeAccidentShakeY = accidentShakeY;
+            beforeAccidentShakeZ = accidentShakeZ;
 
             //받아온 센서값의 로그 값을 찍습니다.
-            Log.d("+x",String.valueOf(plus_x));
-            Log.d("+y",String.valueOf(plus_y));
-            Log.d("+z", String.valueOf(plus_z));
+            Log.d("+x",String.valueOf(accidentShakeX));
+            Log.d("+y",String.valueOf(accidentShakeY));
+            Log.d("+z", String.valueOf(accidentShakeZ));
         }
     }
 
@@ -173,13 +175,12 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         //리스너 등록 후 이벤트 기다림
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
         speechRecognizer.setRecognitionListener(listener);
-        speechRecognizer.startListening(intent);
+        speechRecognizer.startListening(accidentJudgeIntent);
     }
 
     private RecognitionListener listener = new RecognitionListener() {  //음성 인식 리스너
         @Override
         public void onReadyForSpeech(Bundle bundle) {
-
             Toast.makeText(getApplicationContext(), "음성 인식 준비 완료", Toast.LENGTH_LONG).show();
         }
         @Override
@@ -192,9 +193,9 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         public void onEndOfSpeech() {}
         @Override
         public void onError(int i) {
-            Toast.makeText(getApplicationContext(), "에러 발생",Toast.LENGTH_LONG).show();
-            if(flag_Crash) {
-                speechRecognizer.startListening(intent);
+            Toast.makeText(getApplicationContext(), "다시 말해주세요",Toast.LENGTH_LONG).show();
+            if(detectingCrash) {
+                speechRecognizer.startListening(accidentJudgeIntent);
             }
         }
 
@@ -206,26 +207,24 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
             String[] rs = new String[mResult.size()];
             mResult.toArray(rs);
 
-            Answer = rs[0];
-            Voice_Text.setText(Answer);
+            driverAnswer = rs[0];
+            voiceTextView.setText(driverAnswer);
 
-            if(Answer.equals("아니요") )    // "아니요" 인식 한 경우 신고 대기 취소
-            {
-                notify_Text.setText("사고 신고 대기를 취소합니다. 다시 충돌을 감지합니다.");
-                flag_Crash = false;
+            if(driverAnswer.equals("아니요") ) { // "아니요" 인식 한 경우 신고 대기 취소
+                notifyTextView.setText("사고 신고 대기를 취소합니다. 다시 충돌을 감지합니다.");
+                detectingCrash = false;
                 timerthread.flag = false;
                 speechRecognizer.stopListening();
-
             }
-            else if(Answer.equals("신고해"))   //"신고해" 인식 한 경우
-            {
-                notify_Text.setText("사고 신고를 진행합니다.");
-                flag_Crash = false;
+            else if(driverAnswer.equals("신고해")) { //"신고해" 인식 한 경우
+                notifyTextView.setText("사고 신고를 진행합니다.");
+                sendSMS("01071509860","테스트 문자입니다");
+                detectingCrash = false;
                 timerthread.flag = false;
             }
             else {                              //인식이 제대로 안 된 경우
-                Voice_Text.setText("다시 인식합니다.");
-                speechRecognizer.startListening(intent);
+                voiceTextView.setText("다시 인식합니다.");
+                speechRecognizer.startListening(accidentJudgeIntent);
             }
         }
 
@@ -238,13 +237,13 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
 
     class TimerThread extends Thread { //시간을 재기 위한 스레드
 
-        int delay_time;
+        int delayTime;
         boolean flag = true;
-        int current_time = 0;
+        int currentTime = 0;
         TimerHandler myhandler;
 
         public TimerThread(int delay_time) {
-            this.delay_time = delay_time * 1000;
+            this.delayTime = delay_time * 1000;
             myhandler = new TimerHandler();
         }
 
@@ -256,13 +255,13 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                ++current_time;
-                if (current_time * 1000 == delay_time) {
-                    Message msg = myhandler.obtainMessage(0,current_time,0);
+                ++currentTime;
+                if (currentTime * 1000 == delayTime) {
+                    Message msg = myhandler.obtainMessage(0,currentTime,0);
                     myhandler.sendMessage(msg);
                 } else {
 
-                    Message msg = myhandler.obtainMessage(1,current_time,0);
+                    Message msg = myhandler.obtainMessage(1,currentTime,0);
                     myhandler.sendMessage(msg);
                 }
             }
@@ -270,25 +269,67 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         }
     }
     class TimerHandler extends Handler{     //스레드와 메인 프로세스 연결하기 위한 핸들러
-        public void handleMessage(android.os.Message msg)
-        {
-            if(msg.what == 0)
-            {
+        public void handleMessage(android.os.Message msg) {
+            if(msg.what == 0) {
                 timerthread.flag = false;
-                notify_Text.setText("차량 사고 신고를 진행합니다.");
-                timer_Text.setText(String.valueOf(msg.arg1));
+                notifyTextView.setText("차량 사고 신고를 진행합니다.");
+                timerTextView.setText(String.valueOf(msg.arg1));
                 speechRecognizer.stopListening();
-                flag_Crash = false;
+                detectingCrash = false;
 
             }
-            else if(msg.what==1)
-            {
-
-                timer_Text.setText(String.valueOf(msg.arg1));
+            else if(msg.what==1){
+                timerTextView.setText(String.valueOf(msg.arg1));
             }
-
         }
     }
+
+    /*
+     * 문자 메시지 전송 소스 2016.08.26
+     */
+
+    public void sendSMS(String smsNumber, String smsText){
+        PendingIntent smsSentIntent = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT_ACTION"), 0);
+        PendingIntent smsDeliveredIntent = PendingIntent.getBroadcast(this, 0, new Intent("SMS_DELIVERED_ACTION"), 0);
+
+        /*
+         * SMS가 발송될때 실행
+         */
+        registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                switch(getResultCode()){
+                    case Activity.RESULT_OK:
+                        // 전송 성공
+                        Toast.makeText(context, "전송 완료", Toast.LENGTH_SHORT).show();
+                        break;
+                    case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
+                        // 전송 실패
+                        Toast.makeText(context, "전송 실패", Toast.LENGTH_SHORT).show();
+                        break;
+                    case SmsManager.RESULT_ERROR_NO_SERVICE:
+                        // 서비스 지역 아님
+                        Toast.makeText(context, "서비스 지역이 아닙니다", Toast.LENGTH_SHORT).show();
+                        break;
+                    case SmsManager.RESULT_ERROR_RADIO_OFF:
+                        // 무선 꺼짐
+                        Toast.makeText(context, "무선(Radio)가 꺼져있습니다", Toast.LENGTH_SHORT).show();
+                        break;
+                    case SmsManager.RESULT_ERROR_NULL_PDU:
+                        // PDU 실패
+                        Toast.makeText(context, "PDU Null", Toast.LENGTH_SHORT).show();
+                        break;
+                }
+            }
+        }, new IntentFilter("SMS_SENT_ACTION"));
+
+        SmsManager mSmsManager = SmsManager.getDefault();
+        mSmsManager.sendTextMessage(smsNumber, null, smsText, smsSentIntent, smsDeliveredIntent);
+    }
+
+    /*
+     * 카메라를 이용한 안면 인식 소스 2016.08.26
+     */
 
     private void requestCameraPermission() {
         Log.w(TAG, "Camera permission is not granted. Requesting permission");
@@ -362,7 +403,6 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         }
     }
 
-
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         if (requestCode != RC_HANDLE_CAMERA_PERM) {
@@ -373,7 +413,7 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
 
         if (grantResults.length != 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             Log.d(TAG, "Camera permission granted - initialize the camera source");
-            // we have permission, so create the camerasource
+            // 권한 획득 > 카메라 소스 생성
             createCameraSource();
             return;
         }
@@ -394,10 +434,9 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
                 .show();
     }
 
-
     private void startCameraSource() {
 
-        // check that the device has play services available.
+        // 디바이스가 구글 플레이를 지원하는 지 확인
         int code = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(
                 getApplicationContext());
         if (code != ConnectionResult.SUCCESS) {
