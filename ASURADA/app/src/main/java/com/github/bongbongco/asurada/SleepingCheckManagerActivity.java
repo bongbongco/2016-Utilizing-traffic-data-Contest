@@ -47,7 +47,7 @@ import java.util.ArrayList;
 
 public final class SleepingCheckManagerActivity extends AppCompatActivity implements SensorEventListener {
 
-    // 안면 인식 관련 변수
+    //region 안면 인식 관련 변수
     private static final String TAG = "FaceTracker";
     private static int ALARM_POINT = 0;
 
@@ -58,8 +58,9 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
 
     private static final int RC_HANDLE_GMS = 9001;
     private static final int RC_HANDLE_CAMERA_PERM = 2;
+    //endregion
 
-    //sensor 관련 변수
+    //region sensor 관련 변수
     //가속도 센서 값
     private float accidentShakeX;
     private float accidentShakeY;
@@ -81,46 +82,54 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
     //타이머 시간
     private String timer;
     private TimerThread timerthread;
+    //endregion
 
-    //TextView
+    //region TextView 변수들
     private TextView voiceTextView;
     private TextView notifyTextView;
     private TextView timerTextView;
+    //endregion
 
     @Override
     public void onCreate(Bundle icicle) {
         super.onCreate(icicle);
         setContentView(R.layout.main);
 
-        //안면 인식 관련 변수
+        //region 안면 인식 관련 UI 변수
         mPreview = (CameraSourcePreview) findViewById(R.id.preview);
         mGraphicOverlay = (GraphicOverlay) findViewById(R.id.faceOverlay);
+        //endregion
 
-        //sensor 관련 변수
+        //region sensor 관련 UI 변수
         voiceTextView = (TextView)findViewById(R.id.voice);
         notifyTextView = (TextView)findViewById(R.id.notify);
         timerTextView = (TextView)findViewById(R.id.timer);
+        //endregion
 
+        //region 사고 처리를 위한 인텐트, 센서 매니저 생성(충돌 인식)
         accidentJudgeIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         accidentJudgeIntent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
         accidentJudgeIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR");
 
         sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);    //시스템 서비스로부터
         sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        //endregion
         onStart();
 
-        //권한 승인 여부 화인 후 카메라 객체 생성
+        //region 카메라 권한 여부 확인 로직
         int rc = ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA);
         if (rc == PackageManager.PERMISSION_GRANTED) {
             createCameraSource();
         } else {
             requestCameraPermission();
         }
+        //endregion
     }
 
     /*
      * 사고 인식을 위한 센서 소스 2016.08.26
      */
+    //region 충돌 감지 로직
     public void onStart() {
         super.onStart();
         if(sensor!=null) {
@@ -137,6 +146,7 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
 
     public void onAccuracyChanged(Sensor sensor, int accuracy){}
 
+    //region 센서 값 변경 감지하여 처리
     public void onSensorChanged(SensorEvent event) { //센서값이 변하면 자동으로 호출되는 함수
         if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             accidentShakeX = event.values[0];
@@ -169,6 +179,7 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
             Log.d("+z", String.valueOf(accidentShakeZ));
         }
     }
+    //endregion
 
     public void ToReport()
     {
@@ -178,6 +189,7 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         speechRecognizer.startListening(accidentJudgeIntent);
     }
 
+    //region 음성 인식 및 음성 인식 결과 처리
     private RecognitionListener listener = new RecognitionListener() {  //음성 인식 리스너
         @Override
         public void onReadyForSpeech(Bundle bundle) {
@@ -198,9 +210,9 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
                 speechRecognizer.startListening(accidentJudgeIntent);
             }
         }
-
+        //region 음성 인식 결과 처리
         @Override
-        public void onResults(Bundle bundle) {      //음성 인식 결과를 얻어오는 함수 오버라이딩
+        public void onResults(Bundle bundle) {
             String key = "";
             key = SpeechRecognizer.RESULTS_RECOGNITION;
             ArrayList<String> mResult = bundle.getStringArrayList(key);
@@ -227,6 +239,7 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
                 speechRecognizer.startListening(accidentJudgeIntent);
             }
         }
+        //endregion
 
         @Override
         public void onPartialResults(Bundle bundle){}
@@ -234,8 +247,10 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         @Override
         public void onEvent(int i, Bundle bundle) {}
     };
+    //endregion
 
-    class TimerThread extends Thread { //시간을 재기 위한 스레드
+    //region 신고/비 신고 선택을 위한 대기 시간 측정 스레드
+    class TimerThread extends Thread {
 
         int delayTime;
         boolean flag = true;
@@ -268,7 +283,10 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
 
         }
     }
-    class TimerHandler extends Handler{     //스레드와 메인 프로세스 연결하기 위한 핸들러
+    //endregion
+
+    //region 스레드와 메인 프로세스 연결을 위한 핸들러
+    class TimerHandler extends Handler{
         public void handleMessage(android.os.Message msg) {
             if(msg.what == 0) {
                 timerthread.flag = false;
@@ -283,11 +301,13 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
             }
         }
     }
+    //endregion
+    //endregion
 
     /*
      * 문자 메시지 전송 소스 2016.08.26
      */
-
+    //region 문자 메시지 전송
     public void sendSMS(String smsNumber, String smsText){
         PendingIntent smsSentIntent = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT_ACTION"), 0);
         PendingIntent smsDeliveredIntent = PendingIntent.getBroadcast(this, 0, new Intent("SMS_DELIVERED_ACTION"), 0);
@@ -326,11 +346,13 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         SmsManager mSmsManager = SmsManager.getDefault();
         mSmsManager.sendTextMessage(smsNumber, null, smsText, smsSentIntent, smsDeliveredIntent);
     }
+//endregion
 
     /*
      * 카메라를 이용한 안면 인식 소스 2016.08.26
      */
-
+    //region 졸음 감지 로직
+    //region 카메라 활용 권한 요청
     private void requestCameraPermission() {
         Log.w(TAG, "Camera permission is not granted. Requesting permission");
 
@@ -357,7 +379,9 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
                 .setAction(R.string.ok, listener)
                 .show();
     }
+    //endregion
 
+    //region 카메라 사용 객체, 안면 인식 객체 생성
     private void createCameraSource() {
 
         Context context = getApplicationContext();
@@ -381,6 +405,7 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
                 .setRequestedFps(30.0f)
                 .build();
     }
+    //endregion
 
     @Override
     protected void onResume() {
@@ -403,6 +428,7 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         }
     }
 
+    //region 카메라 권한 요청 결과 처리
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         if (requestCode != RC_HANDLE_CAMERA_PERM) {
@@ -433,7 +459,9 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
                 .setPositiveButton(R.string.ok, listener)
                 .show();
     }
+    //endregion
 
+    //region 카메라 촬영
     private void startCameraSource() {
 
         // 디바이스가 구글 플레이를 지원하는 지 확인
@@ -455,6 +483,7 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
             }
         }
     }
+    //endregion
 
     private class GraphicFaceTrackerFactory implements MultiProcessor.Factory<Face> {
         @Override
@@ -463,7 +492,7 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         }
     }
 
-
+    //region 얼굴 그래픽 처리(실질적인 졸음 판단 로직)
     private class GraphicFaceTracker extends Tracker<Face> {
         Context context = getApplicationContext();
         int count = 0;
@@ -479,7 +508,7 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
             this.pool = new SoundPool(1, 3, 0);
             this.sound = this.pool.load(context, R.raw.gunshot,1);
         }
-
+        //region 졸린 얼굴 판정
         private boolean SleepingFaceCheck(float leftEye, float rightEye)
         {
             boolean bool = true;
@@ -489,12 +518,14 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
             }
             return bool;
         }
+        //endregion
 
         @Override
         public void onNewItem(int faceId, Face item) {
             mFaceGraphic.setId(faceId);
         }
 
+        //region 운전자 졸음 인식하여 처리
         @Override
         public void onUpdate(FaceDetector.Detections<Face> detectionResults, Face face) {
             mOverlay.add(mFaceGraphic);
@@ -513,6 +544,7 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
             this.count = 0;
             return;
         }
+        //endregion
 
         @Override
         public void onMissing(FaceDetector.Detections<Face> detectionResults) {
@@ -524,4 +556,6 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
             mOverlay.remove(mFaceGraphic);
         }
     }
+    //endregion
+    //endregion
 }
