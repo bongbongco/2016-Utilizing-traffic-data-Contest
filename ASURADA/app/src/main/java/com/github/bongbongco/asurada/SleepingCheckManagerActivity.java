@@ -4,6 +4,8 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -11,14 +13,17 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
+import android.graphics.BitmapFactory;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.SoundPool;
+import android.os.Build;
 import android.os.Bundle;
-import android.os.Message;
 import android.os.Handler;
+import android.os.Message;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -42,6 +47,8 @@ import com.google.android.gms.vision.face.Face;
 import com.google.android.gms.vision.face.FaceDetector;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 
 
@@ -124,7 +131,43 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
             requestCameraPermission();
         }
         //endregion
+
+        AppNotification();
     }
+
+   /*
+    * 상태 표시줄 2016.09.14
+    */
+    //region 버전 확인 후 분기하여 상태 표시줄
+    public void AppNotification() {
+        Notification notification = null;
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, SleepingCheckManagerActivity.class), PendingIntent.FLAG_UPDATE_CURRENT);
+        NotificationManager notificationManager =  (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB) {
+            notification = new Notification();
+            notification.icon = R.drawable.asurada;
+            try {
+                Method deprecatedMethod = notification.getClass().getMethod("setLatestEventInfo", Context.class, CharSequence.class, CharSequence.class, PendingIntent.class);
+                deprecatedMethod.invoke(notification, this, "졸음방지 앱 타이틀", null, pendingIntent);
+            } catch (NoSuchMethodException | IllegalAccessException | IllegalArgumentException
+                    | InvocationTargetException e) {
+                Log.w(TAG, "Method not found", e);
+            }
+        } else {
+            // Use new API
+            Notification.Builder builder = new Notification.Builder(this)
+                    .setContentIntent(pendingIntent)
+                    .setSmallIcon(R.drawable.asurada)
+                    .setContentTitle("졸음방지 앱 타이틀");
+            notification = builder.build();
+            notificationManager.notify(8282, notification);
+        }
+
+    }
+
+    //endregion
+
 
     /*
      * 사고 인식을 위한 센서 소스 2016.08.26
