@@ -135,6 +135,13 @@ public final class SleepingCheckManagerActivity extends AppCompatActivity implem
         AppNotification();
     }
 
+    //region Setting Intent 전환
+    public void LoadSettingActivity(View view) {
+        Intent SettingActivity = new Intent(this, SettingActivity.class);
+        startActivity(SettingActivity);
+    }
+    //endregion
+
    /*
     * 상태 표시줄 2016.09.14
     */

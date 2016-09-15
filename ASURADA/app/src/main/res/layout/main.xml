@@ -11,12 +11,14 @@
     <com.github.bongbongco.asurada.ui.camera.CameraSourcePreview
         android:id="@+id/preview"
         android:layout_width="match_parent"
-        android:layout_height="200dp">
+        android:layout_height="200dp"
+        >
 
     <com.github.bongbongco.asurada.ui.camera.GraphicOverlay
         android:id="@+id/faceOverlay"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        />
 
     </com.github.bongbongco.asurada.ui.camera.CameraSourcePreview>
 
@@ -49,5 +51,13 @@
         android:layout_marginTop="55dp"
         android:textSize="20dp"
         android:layout_alignParentLeft="true" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="환경 설정"
+        android:id="@+id/button"
+        android:layout_gravity="center_horizontal"
+        android:onClick="LoadSettingActivity" />
 
 </LinearLayout>

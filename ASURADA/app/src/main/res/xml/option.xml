@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:key="setting1"
+        android:title="사고 신고 ">
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="AutoReport"
+            android:title="신고 기능"
+            android:summary="자동 신고 기능을 설정합니다"
+            android:switchTextOff="OFF"
+            android:switchTextOn="ON"/>
+        <EditTextPreference
+            android:dependency="AutoReport"
+            android:defaultValue="60"
+            android:key="time"
+            android:maxLines="1"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="신고 대기 시간 설정"
+            android:summary="충돌 후 자동 신고까지 대기시간을 설정합니다."
+            />
+        <EditTextPreference
+            android:dependency="AutoReport"
+            android:defaultValue="60"
+            android:key="Address"
+            android:maxLines="1"
+            android:selectAllOnFocus="true"
+            android:singleLine="true"
+            android:title="긴급 연락처 추가"
+            android:summary="자동 신고시에 긴급 연락망을 추가합니다."
+            />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:key="setting2"
+        android:title="차량 정보">
+    </PreferenceCategory>
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="Car"
+        android:title="차량 정보"
+        android:summary="사고 신고 문자 메세지에 차량 정보를 추가합니다."
+        android:switchTextOff="OFF"
+        android:switchTextOn="ON"/>
+    <PreferenceCategory
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:key="setting3"
+        android:title="앱 정보">
+        <Preference
+            android:title="개발자 정보"
+            android:summary="개발자 정보를 확인합니다">
+        </Preference>
+        <Preference
+            android:title="어플 문의"
+            android:summary="어플과 관련하여 문의합니다.">
+        </Preference>
+    </PreferenceCategory>
+
+</PreferenceScreen>
